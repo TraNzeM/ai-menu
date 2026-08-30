@@ -1,65 +1,71 @@
-# AI Menu — плагин Noctalia v5
+# AI Menu — Noctalia v5 plugin
 
-Оверлей-панель с AI-командами: выдели текст → Ctrl+Alt+Space → выбери команду → результат вставляется обратно. Работает с любым Hermes-совместимым API (OpenAI-формат).
+AI-command overlay over selected text via the Hermes API: select text → Ctrl+Alt+Space → pick a command → streaming response → Copy / Insert / Replace / Chat.
 
-![AI Menu screenshot](assets/screenshot.png)
+Works with any Hermes-compatible API (OpenAI format).
 
-## Возможности
+## Features
 
-- **Стриминг ответа**: токены появляются по мере генерации (первый токен ~2-4с), а не после полного ответа (16-25с)
-- **Tool-calls**: когда модель вызывает калькулятор/терминал (например «сколько будет 8*9»), панель показывает «🐍 python3 -c …» — статус выполняемого инструмента, а финальный ответ приходит в потоке
-- **Постоянная сессия**: все запросы идут в одну сессию `ai-menu` (контекст сохраняется между запросами)
-- **Очистка сессии**: тумблер «очищать сессию перед каждым запросом» (DELETE /api/sessions/ai-menu — новые сессии не плодятся)
-- **Локализация**: en/ru (интерфейс панели переключается настройкой `language`; настройки в GUI Noctalia — системным языком Noctalia)
-- **21 команда** из `~/.config/ai-menu/commands.json`, «Ask me anything» — свободный вопрос
-- **Клавиатура и мышь**: ↑/↓ выбор, Enter запуск, Esc закрыть, колесо — скролл
+- **Streaming responses**: tokens appear as they are generated (first token in ~2–4s instead of the full 16–25s wait)
+- **Tool-calls**: when the model runs a tool (calculator, terminal — e.g. "what is 8*9"), the panel shows the tool status ("🐍 python3 -c …"); the final answer arrives in the stream
+- **Persistent session**: all requests share one `ai-menu` session (context persists between requests)
+- **Clear session**: "clear session before each request" toggle (DELETE /api/sessions/ai-menu — no session proliferation)
+- **Localization**: en/ru panel UI (via the `language` setting)
+- **21 commands** from `~/.config/ai-menu/commands.json`, "Ask me anything" = free-form question
+- **Keyboard + mouse**: Up/Down to pick, Enter to run, Esc to close, wheel to scroll
+- **Actions**: Copy / Insert / Replace / Chat (text buttons) + Retry (refresh icon)
 
-## Установка
+## Install
 
-1. Скопируй плагин в каталог источников Noctalia:
+1. Add the plugin source and enable it:
    ```bash
-   noctalia msg plugins source add local-dev path /path/to/noctalia-plugins
+   noctalia msg plugins source add ai-menu git https://github.com/TraNZeM/ai-menu
    noctalia msg plugins enable tranzem/ai-menu
    ```
-2. Горячая клавиша (пример для Umbriel, `~/.config/umbriel/config.toml`):
+   > **Note:** after adding a git source, Noctalia clones it in the background. If the plugin does not appear immediately, restart Noctalia (or wait for the auto-update tick).
+2. Hotkey (example for Umbriel, `~/.config/umbriel/config.toml`):
    ```toml
    "Ctrl+Alt+Space" = "spawn:noctalia msg panel-toggle tranzem/ai-menu:panel"
    ```
 
-Пример конфига команд — `commands.example.json` в репозитории (скопируй в `~/.config/ai-menu/commands.json` и отредактируй под себя).
+Copy the example config to get started:
 
-## Настройки (в GUI Noctalia: Plugins → AI Menu)
+```bash
+cp ai-menu/commands.example.json ~/.config/ai-menu/commands.json
+```
 
-| Настройка | Default | Описание |
+## Settings (Noctalia GUI: Plugins → AI Menu)
+
+| Setting | Default | Description |
 |---|---|---|
-| `base_url` | `http://127.0.0.1:8642` | Адрес Hermes API |
-| `model` | `deepseek-v4-flash` | Модель |
-| `env_file` | `~/.hermes/.env` | Файл с `API_SERVER_KEY` |
-| `commands_file` | `~/.config/ai-menu/commands.json` | Файл команд |
-| `clear_session` | off | Очищать сессию перед каждым запросом |
-| `chat_command` | `hermes chat --resume {session}` | Команда кнопки Chat |
-| `language` | `en` | Язык интерфейса (en/ru) |
+| `base_url` | `http://127.0.0.1:8642` | Hermes API address |
+| `model` | `deepseek-v4-flash` | Model |
+| `env_file` | `~/.hermes/.env` | File with `API_SERVER_KEY` |
+| `commands_file` | `~/.config/ai-menu/commands.json` | Commands file |
+| `clear_session` | off | Clear the session before each request |
+| `chat_command` | `hermes chat --resume {session}` | Command for the Chat button |
+| `language` | `en` | UI language (en/ru) |
 
-## Docker (Hermes в контейнере)
+## Docker (Hermes in a container)
 
-Плагин работает с Hermes в Docker, нужны две настройки:
+The plugin works with Hermes in Docker — two settings to adjust:
 
-1. **`env_file`** → путь к compose `.env` на хосте (там лежит `API_SERVER_KEY`):
+1. **`env_file`** → path to the compose `.env` on the host (where `API_SERVER_KEY` lives):
    ```
    ~/hermes-workspace/.env
    ```
-   Без ключа сессии не работают (401/403) — плагин покажет понятную ошибку.
+   Without a key, sessions fail with 401/403 — the plugin shows a clear error.
 
-2. **`chat_command`** → команда запуска чата через контейнер:
+2. **`chat_command`** → chat launch through the container:
    ```
    docker exec -it hermes-agent hermes chat --resume {session}
    ```
 
-Проверь, что порт 8642 проброшен в docker-compose (`ports: 8642:8642`) и `API_SERVER_KEY` задан в `.env`.
+Make sure port 8642 is published in docker-compose (`ports: 8642:8642`) and `API_SERVER_KEY` is set in `.env`.
 
-## Команды
+## Commands
 
-Файл `commands.json` (21 команда). Формат:
+`commands.json` format:
 
 ```json
 [
@@ -73,46 +79,50 @@
 ]
 ```
 
-- `{input}` — выделенный текст (или введённый вопрос для `ask`-команд)
-- `name_ru`/`prompt_ru` — русские варианты (используются при `language=ru`)
-- `ask: true` — команда «свободный вопрос»: по Enter открывается поле ввода
+- `{input}` — the selected text (or the typed question for `ask` commands)
+- `name_ru` / `prompt_ru` — Russian variants (used when `language=ru`)
+- `ask: true` — free-question command: Enter opens an input field
 
-## Сессии Hermes
+## Hermes sessions
 
-- Плагин всегда использует одну сессию `ai-menu` (заголовок `X-Hermes-Session-Id`).
-- `clear_session=on`: история сессии удаляется перед каждым запросом через `DELETE /api/sessions/ai-menu` — новые сессии не плодятся.
-- Кнопка **Chat** открывает терминал с `hermes chat --resume ai-menu` — продолжение той же сессии.
+- The plugin always uses one session `ai-menu` (header `X-Hermes-Session-Id`).
+- `clear_session=on`: session history is deleted before each request via `DELETE /api/sessions/ai-menu` — no new sessions are created.
+- The **Chat** button opens a terminal with `hermes chat --resume ai-menu` — the same session.
 
-## Локализация
+## Localization
 
-- **Интерфейс панели** (команды, кнопки, подсказки, ошибки): переключается настройкой `language` (`en` по умолчанию).
-- **Настройки плагина в GUI Noctalia** (label_key в plugin.toml): локализуются **языком самого Noctalia** (`lang` в `~/.config/noctalia/config.toml`) через `translations/<lang>.json`. Чтобы настройки были на английском — поставь `lang = "en"` в конфиге Noctalia.
-- Команды поддерживают `name_ru`/`prompt_ru` — при `language=ru` используются русские промпты.
+- **Panel UI** (commands, buttons, hints, errors): switches with the `language` setting (`en` default).
+- **Plugin settings in the Noctalia GUI** (label_key in plugin.toml): localized by **Noctalia's own language** (`lang` in `~/.config/noctalia/config.toml`) via `translations/<lang>.json`. To have English settings, set `lang = "en"` in the Noctalia config.
+- Commands support `name_ru`/`prompt_ru` — Russian prompts are used when `language=ru`.
 
-## Архитектура
+## Architecture
 
 ```
 shortcut.luau ──toggle──▶ panel.luau ──HTTP stream──▶ Hermes API
                              │  ▲
-                             │  │ state-канал "paste"
+                             │  │ state channel "paste"
                              ▼  │
-                          service.luau (отложенная вставка wtype)
+                          service.luau (deferred wtype paste)
 ```
 
-- **panel.luau**: UI, фазы (list/ask/working/done), `noctalia.httpStream` (SSE), сбор `delta.content`, tool.progress
-- **service.luau**: после закрытия панели эмулирует Ctrl+V через `wtype`, для Insert восстанавливает прежний буфер
-- **shortcut.luau**: control-center tile, открывает панель
+- **panel.luau**: UI, phases (list/ask/working/done), `noctalia.httpStream` (SSE), `delta.content` accumulation, tool.progress
+- **service.luau**: after the panel closes, emulates Ctrl+V via `wtype`; for Insert restores the previous clipboard
+- **shortcut.luau**: control-center tile that opens the panel
 
-### Стриминг (как это работает)
+### Streaming (how it works)
 
-1. Запрос уходит с `stream: true` через `noctalia.httpStream`
-2. SSE-строки: `data: {delta.content}` накапливаются в `response` и отображаются сразу
-3. `event: hermes.tool.progress` + `data: {tool, emoji, label}` — статус инструмента («🐍 python3 …»)
-4. `data: [DONE]` → финальная обработка → фаза DONE с кнопками
-5. Закрытие панели во время ответа → `handle.stop()` отменяет стрим
+1. Request is sent with `stream: true` via `noctalia.httpStream`
+2. SSE lines `data: {delta.content}` accumulate into `response` and render live
+3. `event: hermes.tool.progress` + `data: {tool, emoji, label}` — tool status ("🐍 python3 …")
+4. `data: [DONE]` → finalization → DONE phase with action buttons
+5. Closing the panel mid-response → `handle.stop()` cancels the stream
 
-## Требования
+## Requirements
 
 - Wayland + Noctalia v5 (plugin_api 24)
 - `wl-paste` / `wl-copy` (wl-clipboard), `wtype`
-- Hermes API на `base_url` (порт 8642)
+- Hermes API on `base_url` (port 8642)
+
+## License
+
+MIT
