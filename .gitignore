@@ -1,0 +1,12 @@
+# User-local config (never commit personal commands)
+commands.json
+commands.toml
+
+# Editor / OS
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Screenshots / local artifacts
+*.bak

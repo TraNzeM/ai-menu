@@ -1,0 +1,54 @@
+{
+  "settings": {
+    "base_url": {
+      "label": "Адрес API Hermes",
+      "description": "Адрес gateway Hermes (OpenAI-совместимый API)."
+    },
+    "model": {
+      "label": "Модель",
+      "description": "Модель для запросов."
+    },
+    "env_file": {
+      "label": "Env-файл",
+      "description": "Путь к .env с API_SERVER_KEY."
+    },
+    "commands_file": {
+      "label": "Файл команд",
+      "description": "JSON-файл с командами [{name, prompt}]. Пусто = встроенные."
+    },
+    "clear_session": {
+      "label": "Очищать сессию перед каждым запросом",
+      "description": "Выкл: одна постоянная сессия Hermes (контекст сохраняется). Вкл: история сессии удаляется перед каждым запросом через DELETE /api/sessions/ai-menu (новые сессии не создаются)."
+    },
+    "chat_command": {
+      "label": "Команда чата",
+      "description": "Терминальная команда для кнопки Chat. {session} заменяется на id сессии. Для Docker: docker exec -it hermes-agent hermes chat --resume {session}"
+    },
+    "language": {
+      "label": "Язык",
+      "description": "Язык интерфейса плагина и промптов команд.",
+      "options": {
+        "en": "English",
+        "ru": "Русский"
+      }
+    }
+  },
+  "ui": {
+    "title": "AI Menu",
+    "ask_hint": "Введите вопрос (Enter — отправить, Esc — назад)",
+    "ask_placeholder": "Ваш вопрос…",
+    "working": "Запрос к Hermes…",
+    "no_selection": "Выделите текст и откройте меню",
+    "http_transport_error": "HTTP: транспортная ошибка",
+    "http_rejected": "HTTP: запрос отклонён",
+    "empty_response": "пустой ответ модели"
+  },
+  "actions": {
+    "copy": "Копировать",
+    "replace": "Заменить",
+    "insert": "Вставить",
+    "chat": "Чат",
+    "write": "Вставить и оставить",
+    "close": "Закрыть"
+  }
+}

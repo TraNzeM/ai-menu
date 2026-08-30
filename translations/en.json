@@ -1,0 +1,54 @@
+{
+  "settings": {
+    "base_url": {
+      "label": "Hermes API base URL",
+      "description": "Hermes gateway address (OpenAI-compatible API)."
+    },
+    "model": {
+      "label": "Model",
+      "description": "Model used for requests."
+    },
+    "env_file": {
+      "label": "Env file",
+      "description": "Path to .env containing API_SERVER_KEY."
+    },
+    "commands_file": {
+      "label": "Commands file",
+      "description": "JSON file with commands [{name, prompt}]. Empty = built-in."
+    },
+    "clear_session": {
+      "label": "Clear session before each request",
+      "description": "Off: one persistent Hermes session (context persists). On: session history is deleted before each request via DELETE /api/sessions/ai-menu (no new sessions are created)."
+    },
+    "chat_command": {
+      "label": "Chat command",
+      "description": "Terminal command for the Chat button. {session} is replaced with the session id. For Docker: docker exec -it hermes-agent hermes chat --resume {session}"
+    },
+    "language": {
+      "label": "Language",
+      "description": "Plugin UI and command prompts language.",
+      "options": {
+        "en": "English",
+        "ru": "Русский"
+      }
+    }
+  },
+  "ui": {
+    "title": "AI Menu",
+    "ask_hint": "Type your question (Enter to send, Esc to go back)",
+    "ask_placeholder": "Your question…",
+    "working": "Requesting Hermes…",
+    "no_selection": "Select some text and open the menu",
+    "http_transport_error": "HTTP: transport error",
+    "http_rejected": "HTTP: request rejected",
+    "empty_response": "empty model response"
+  },
+  "actions": {
+    "copy": "Copy",
+    "replace": "Replace",
+    "insert": "Insert",
+    "chat": "Chat",
+    "write": "Write",
+    "close": "Close"
+  }
+}

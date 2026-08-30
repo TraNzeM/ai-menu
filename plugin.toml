@@ -1,0 +1,94 @@
+# ai-menu — Noctalia v5 plugin: AI commands via Hermes API.
+#
+# Pattern like screen_recorder: [[service]] owns low-level logic (pasting the
+# response into the app via wtype + clipboard restore), while [[panel]] and
+# [[shortcut]] are thin clients talking over a state channel.
+#
+# Opening the panel: noctalia msg panel-toggle tranzem/ai-menu:panel
+
+id = "tranzem/ai-menu"
+name = "AI Menu"
+version = "0.1.0"
+plugin_api = 24
+author = "tranzem"
+license = "MIT"
+tags = ["ai", "hermes", "productivity"]
+icon = "sparkles"
+description = "AI-команды над выделенным текстом через Hermes API (Copy / Replace / Insert / Chat / Write)."
+
+[[setting]]
+key = "base_url"
+type = "string"
+label_key = "settings.base_url.label"
+description_key = "settings.base_url.description"
+default = "http://127.0.0.1:8642"
+
+[[setting]]
+key = "model"
+type = "string"
+label_key = "settings.model.label"
+description_key = "settings.model.description"
+default = "deepseek-v4-flash"
+
+[[setting]]
+key = "env_file"
+type = "string"
+label_key = "settings.env_file.label"
+description_key = "settings.env_file.description"
+default = "~/.hermes/.env"
+
+[[setting]]
+key = "commands_file"
+type = "file"
+label_key = "settings.commands_file.label"
+description_key = "settings.commands_file.description"
+default = "~/.config/ai-menu/commands.json"
+extensions = [".json", ".toml"]
+
+[[setting]]
+key = "clear_session"
+type = "bool"
+label_key = "settings.clear_session.label"
+description_key = "settings.clear_session.description"
+default = false
+
+[[setting]]
+key = "chat_command"
+type = "string"
+label_key = "settings.chat_command.label"
+description_key = "settings.chat_command.description"
+default = "hermes chat --resume {session}"
+
+[[setting]]
+key = "language"
+type = "select"
+label_key = "settings.language.label"
+description_key = "settings.language.description"
+default = "en"
+options = [
+  { value = "en", label_key = "settings.language.options.en" },
+  { value = "ru", label_key = "settings.language.options.ru" },
+]
+
+# Background service: performs the deferred paste (wtype) after the panel
+# closes, so focus returns to the app first; for Insert restores the previous
+# clipboard.
+[[service]]
+id = "service"
+entry = "service.luau"
+
+# Main panel: command list -> Hermes request -> response + actions.
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 720
+height = 440
+placement = "floating"
+position = "center"
+keyboard_focus = "exclusive"
+capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape"]
+
+# Control-center tile: quick panel open.
+[[shortcut]]
+id = "toggle"
+entry = "shortcut.luau"
