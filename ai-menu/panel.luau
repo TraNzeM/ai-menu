@@ -38,7 +38,7 @@ local I18N = {
     http_auth_error = "Authentication error (401/403): API_SERVER_KEY not found or invalid. If Hermes runs in Docker, set env_file to your compose .env (e.g. ~/hermes-workspace/.env) and set API_SERVER_KEY there.",
     env_file_error = "Cannot read env file: ",
     empty_response = "empty model response",
-    actions = { "Copy", "Replace", "Insert", "Chat", "Write", "Close" },
+    actions = { "Copy", "Replace", "Insert", "Chat", "Write", "Retry", "Close" },
   },
   ru = {
     title = "AI Menu",
@@ -51,7 +51,7 @@ local I18N = {
     http_auth_error = "Ошибка авторизации (401/403): API_SERVER_KEY не найден или неверен. Если Hermes в Docker — укажи в env_file путь к compose .env (например ~/hermes-workspace/.env) и задай там API_SERVER_KEY.",
     env_file_error = "Не удалось прочитать env-файл: ",
     empty_response = "пустой ответ модели",
-    actions = { "Копировать", "Заменить", "Вставить", "Чат", "Вставить и оставить", "Закрыть" },
+    actions = { "Копировать", "Заменить", "Вставить", "Чат", "Вставить и оставить", "Повторить", "Закрыть" },
   },
 }
 
@@ -80,6 +80,7 @@ local askIndex = 1 -- which command is in free-question (ask) mode
 local askDraft = "" -- typed question
 
 local doneAction = 0
+local lastRequest = nil -- { index, askInput } — for Retry
 -- Persistent Hermes session: created on first request, reused by all
 -- subsequent ones (X-Hermes-Session-Id). When clear_session=true the header
 -- is omitted, so each request runs in a fresh session.
@@ -128,6 +129,7 @@ local toolStatus = "" -- current model tool ("🐍 print(12*12)…")
 local function runCommand(index, askInput)
   local cmd = commands[index]
   if cmd == nil or busy then return end
+  lastRequest = { index = index, askInput = askInput } -- for Retry
   busy = true
   phase = PHASE_WORKING
   response = ""
@@ -306,6 +308,11 @@ local function doAction(i)
     noctalia.copyToClipboard(response, "text/plain")
     noctalia.state.set("paste", { mode = "insert", restore = nil })
     panel.close()
+  elseif i == 5 then
+    -- Retry: re-send the same request (same command + ask input)
+    if lastRequest ~= nil then
+      runCommand(lastRequest.index, lastRequest.askInput)
+    end
   else
     -- Close
     panel.close()
@@ -470,7 +477,7 @@ render = function()
       }),
       -- spacer grows and pushes the buttons to the bottom (as scroll did)
       ui.spacer({ flexGrow = 1 }),
-      ui.row({ gap = 6, align = "center" }, actionRows),
+      ui.row({ gap = 4, align = "center" }, actionRows),
     }))
     return
   end

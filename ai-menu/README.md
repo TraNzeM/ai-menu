@@ -86,7 +86,7 @@
 ## Локализация
 
 - **Интерфейс панели** (команды, кнопки, подсказки, ошибки): переключается настройкой `language` (`en` по умолчанию).
-- **Настройки плагина в GUI Noctalia** (label_key в plugin.toml): локализуются **системным языком Noctalia** через `translations/<lang>.json`. Если Noctalia на русском — настройки будут русскими, даже при `language=en`. Это поведение Noctalia (язык настроек берётся из конфига Noctalia, не из настроек плагина).
+- **Настройки плагина в GUI Noctalia** (label_key в plugin.toml): локализуются **языком самого Noctalia** (`lang` в `~/.config/noctalia/config.toml`) через `translations/<lang>.json`. Чтобы настройки были на английском — поставь `lang = "en"` в конфиге Noctalia.
 - Команды поддерживают `name_ru`/`prompt_ru` — при `language=ru` используются русские промпты.
 
 ## Архитектура
