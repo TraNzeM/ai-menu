@@ -38,7 +38,8 @@ local I18N = {
     http_auth_error = "Authentication error (401/403): API_SERVER_KEY not found or invalid. If Hermes runs in Docker, set env_file to your compose .env (e.g. ~/hermes-workspace/.env) and set API_SERVER_KEY there.",
     env_file_error = "Cannot read env file: ",
     empty_response = "empty model response",
-    actions = { "Copy", "Replace", "Insert", "Chat", "Write", "Retry", "Close" },
+    retry = "Retry",
+    actions = { "Copy", "Insert", "Replace", "Chat" },
   },
   ru = {
     title = "AI Menu",
@@ -51,7 +52,8 @@ local I18N = {
     http_auth_error = "Ошибка авторизации (401/403): API_SERVER_KEY не найден или неверен. Если Hermes в Docker — укажи в env_file путь к compose .env (например ~/hermes-workspace/.env) и задай там API_SERVER_KEY.",
     env_file_error = "Не удалось прочитать env-файл: ",
     empty_response = "пустой ответ модели",
-    actions = { "Копировать", "Заменить", "Вставить", "Чат", "Вставить и оставить", "Повторить", "Закрыть" },
+    retry = "Повторить",
+    actions = { "Копировать", "Вставить", "Заменить", "Чат" },
   },
 }
 
@@ -285,15 +287,15 @@ local function doAction(i)
     noctalia.copyToClipboard(response, "text/plain")
     panel.close()
   elseif i == 1 then
-    -- Replace: overwrite selection (Ctrl+A + Ctrl+V)
-    noctalia.copyToClipboard(response, "text/plain")
-    noctalia.state.set("paste", { mode = "replace", restore = nil })
-    panel.close()
-  elseif i == 2 then
     -- Insert: paste + restore previous clipboard
     local prev = noctalia.clipboardText() or ""
     noctalia.copyToClipboard(response, "text/plain")
     noctalia.state.set("paste", { mode = "insert", restore = prev })
+    panel.close()
+  elseif i == 2 then
+    -- Replace: overwrite selection (Ctrl+A + Ctrl+V)
+    noctalia.copyToClipboard(response, "text/plain")
+    noctalia.state.set("paste", { mode = "replace", restore = nil })
     panel.close()
   elseif i == 3 then
     -- Chat: terminal continuing the same session. Command is configurable
@@ -304,18 +306,10 @@ local function doAction(i)
     noctalia.runInTerminal(chatCmd)
     panel.close()
   elseif i == 4 then
-    -- Write: paste without restoring the clipboard
-    noctalia.copyToClipboard(response, "text/plain")
-    noctalia.state.set("paste", { mode = "insert", restore = nil })
-    panel.close()
-  elseif i == 5 then
     -- Retry: re-send the same request (same command + ask input)
     if lastRequest ~= nil then
       runCommand(lastRequest.index, lastRequest.askInput)
     end
-  else
-    -- Close
-    panel.close()
   end
 end
 
@@ -372,11 +366,11 @@ function onKey(chord, pressed)
   elseif phase == PHASE_DONE then
     if chord == "Left" then
       doneAction = doneAction - 1
-      if doneAction < 0 then doneAction = #t("actions") - 1 end
+      if doneAction < 0 then doneAction = #t("actions") end -- 4 text + retry icon
       safeRender()
     elseif chord == "Right" then
       doneAction = doneAction + 1
-      if doneAction >= #t("actions") then doneAction = 0 end
+      if doneAction > #t("actions") then doneAction = 0 end
       safeRender()
     elseif chord == "Return" then
       doAction(doneAction)
@@ -466,6 +460,16 @@ render = function()
         onClick = function() doAction(i - 1) end,
       }))
     end
+    -- Retry as a circular-arrow icon button (4 text buttons + 1 icon).
+    table.insert(actionRows, ui.button({
+      key = "act-retry",
+      glyph = "refresh",
+      tooltip = t("retry"),
+      variant = (doneAction == 4) and "primary" or "default",
+      selected = (doneAction == 4),
+      controlSize = "sm",
+      onClick = function() doAction(4) end,
+    }))
     panel.render(ui.column({ flexGrow = 1, gap = 12, align = "stretch", padding = 16 }, {
       ui.label({ text = t("title"), fontSize = 16, fontWeight = "bold", color = "on_surface" }),
       ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
