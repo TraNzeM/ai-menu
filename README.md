@@ -15,9 +15,11 @@ See [ai-menu/README.md](ai-menu/README.md) for full docs.
 ## Install (Noctalia v5)
 
 ```bash
-noctalia msg plugins source add ai-menu git https://github.com/TraNzeM/ai-menu
+noctalia msg plugins source add ai-menu git https://github.com/TraNZeM/ai-menu
 noctalia msg plugins enable tranzem/ai-menu
 ```
+
+> **Note:** after adding a git source, Noctalia clones it in the background. If the plugin does not appear immediately, restart Noctalia (or wait for the auto-update tick) — the source repo is cloned without a checkout until then.
 
 Or local development:
 
