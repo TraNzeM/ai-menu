@@ -15,7 +15,7 @@ Works with any Hermes-compatible API (OpenAI format).
 - **Shortcuts**: assign a letter/digit to a command and run it with a single keystroke
 - **Icons**: emoji shown next to the command name
 - **Keyboard + mouse**: Up/Down to pick (wraps around circularly), Enter to run, letter = shortcut, Esc to close
-- **Carousel list**: the selected command always sits in the middle of the window; the list wraps around in a circle (endless scrolling in both directions), no scrollbar
+- **Carousel list**: the selected command always sits in the middle of the window (3rd of 5 rows); the list wraps around in a circle (endless scrolling in both directions). Rows have a fixed height and the content is sized to the panel's list viewport, so no scrollbar and nothing draws outside the window
 - **Actions**: Copy / Insert / Replace / Chat (text buttons) + Retry (refresh icon)
 
 ## Install
@@ -118,6 +118,7 @@ shortcut.luau ──toggle──▶ panel.luau ──HTTP stream──▶ Hermes
 ```
 
 - **panel.luau**: UI, phases (list/ask/working/done/edit), `noctalia.httpStream` (SSE), `delta.content` accumulation, tool.progress, prompt editor
+- **Carousel list (panel.luau, PHASE_LIST)**: plain fixed-height rows (40px) wrapped in a `ui.scroll` clipping container; the window of 5 commands is computed around `selectedIndex` with ring wrap `((selectedIndex - 3 + k) % n) + 1`. The row count/height are sized so content (224px) fits the measured list viewport (~272px logical) — no scrollbar; `ui.scroll` guarantees nothing ever draws outside the panel
 - **service.luau**: after the panel closes, emulates Ctrl+V via `wtype`; for Insert restores the previous clipboard
 - **shortcut.luau**: control-center tile that opens the panel
 

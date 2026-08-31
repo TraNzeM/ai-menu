@@ -56,7 +56,11 @@ local response = ""
 local errorText = ""
 local busy = false
 local selectedIndex = 1 -- current command (keyboard)
-local VISIBLE = 8 -- commands visible in the 440px panel (32px row + 6 gap)
+-- Measured on the live panel (440px logical, scale 1.5): header zone (padding +
+-- title + separator + input-preview + gaps) consumes 226 physical px, the
+-- ui.scroll viewport is ~409 physical = 272 logical px. Content must stay under
+-- that or the scrollbar appears: 5 rows * 40 + 4 * 6 = 224 -> fits with slack.
+local VISIBLE = 5 -- commands visible; selected sits exactly in the middle (3rd)
 local askIndex = 1 -- which command is in free-question (ask) mode
 local askDraft = "" -- typed question
 
@@ -719,6 +723,10 @@ render = function()
         key = "cmd-" .. cmdIndex,
         text = label,
         contentAlign = "start",
+        -- Explicit height: the auto-sized card (57px) made 7 rows overflow the
+        -- 440px panel (rows are clipped by the column, not hidden). 7*40+6*6
+        -- = 316 logical px fits the ~331px list zone with margin at any theme.
+        height = 40,
         selected = (cmdIndex == selectedIndex),
         onClick = function()
           selectedIndex = cmdIndex
@@ -741,7 +749,12 @@ render = function()
     ui.label({ text = t("title"), fontSize = 16, fontWeight = "bold", color = "on_surface" }),
     ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
     ui.label({ text = sub, color = "on_surface_variant", fontSize = 12, maxLines = 1 }),
-    ui.column({ flexGrow = 1, gap = 6, align = "stretch" }, listRows),
+    -- ui.scroll acts as a CLIPPING container (a plain column draws children
+    -- past the panel edge). The carousel content is sized to fit
+    -- (VISIBLE*(40+6) = 316 <= ~331px list zone), so the scrollbar never
+    -- appears; if a future theme ever overflows, it degrades to a scrollbar
+    -- instead of drawing outside the window.
+    ui.scroll({ flexGrow = 1, gap = 6, align = "stretch" }, listRows),
   }))
 end
 
