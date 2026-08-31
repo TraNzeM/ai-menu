@@ -56,7 +56,6 @@ local response = ""
 local errorText = ""
 local busy = false
 local selectedIndex = 1 -- current command (keyboard)
-local scrollIdx = 0 -- visibility window: commands scrollIdx+1 .. scrollIdx+visible
 local VISIBLE = 8 -- commands visible in the 440px panel (32px row + 6 gap)
 local askIndex = 1 -- which command is in free-question (ask) mode
 local askDraft = "" -- typed question
@@ -411,27 +410,19 @@ end
 -- Keyboard: Up/Down through commands, Enter run, Esc close.
 function onKey(chord, pressed)
   if not pressed then return end
+  noctalia.log("ai-menu KEY: [" .. phase .. "] " .. tostring(chord))
 
   if phase == PHASE_LIST then
+    -- Carousel: selectedIndex is the center of the window; Up/Down move the
+    -- selection around the ring (1..#commands), the window recenters on it,
+    -- so scrolling is infinite in both directions.
     if chord == "Up" then
       selectedIndex = selectedIndex - 1
       if selectedIndex < 1 then selectedIndex = #commands end
-      -- keep the selector inside the window
-      if selectedIndex <= scrollIdx then
-        scrollIdx = selectedIndex - 1
-      elseif selectedIndex > scrollIdx + VISIBLE then
-        scrollIdx = selectedIndex - VISIBLE
-      end
       safeRender()
     elseif chord == "Down" then
       selectedIndex = selectedIndex + 1
       if selectedIndex > #commands then selectedIndex = 1 end
-      -- keep the selector inside the window
-      if selectedIndex <= scrollIdx then
-        scrollIdx = selectedIndex - 1
-      elseif selectedIndex > scrollIdx + VISIBLE then
-        scrollIdx = selectedIndex - VISIBLE
-      end
       safeRender()
     elseif chord == "Return" then
       if commands[selectedIndex] and commands[selectedIndex].ask then
@@ -495,12 +486,35 @@ function onKey(chord, pressed)
     if chord == "Up" then
       editField = editField - 1
       if editField < 1 then editField = 4 end
+      editError = ""
       safeRender()
     elseif chord == "Down" then
       editField = editField + 1
       if editField > 4 then editField = 1 end
+      editError = ""
+      safeRender()
+    elseif chord == "Tab" then
+      -- Shift+Tab arrives as a separate spec in capture_keys (see manifest);
+      -- plain Tab: next field.
+      editField = editField < 4 and (editField + 1) or 1
+      editError = ""
       safeRender()
     elseif chord == "Return" then
+      if editField == 2 then
+        -- Multiline prompt field: Return is consumed by the panel capture
+        -- before the input sees it, so insert the newline ourselves (at the
+        -- end of the value; Ctrl+Enter saves instead).
+        editPrompt = editPrompt .. "\n"
+        safeRender()
+        return
+      end
+      -- Single-line fields: Enter moves to the next field.
+      editField = editField < 4 and (editField + 1) or editField
+      editError = ""
+      safeRender()
+    elseif chord == "Ctrl+Return" then
+      -- Ctrl+Enter = save from any field (the multiline prompt field relies
+      -- on this chord for saving; the input itself sees Shift+Enter only).
       saveEditor()
     elseif chord == "Escape" then
       backFromEditor()
@@ -624,41 +638,45 @@ render = function()
       "Shortcut (single letter)",
     }
     local fieldValues = { editName, editPrompt, editIcon, editShortcut }
+    -- The active field gets a dedicated input. The prompt field is multiline
+    -- (Enter = newline, Ctrl+Enter = save); single-line fields submit on Enter
+    -- (onKey routes Enter from the panel anyway).
+    local isPrompt = (editField == 2)
     local rows = {
       ui.label({ text = "Edit command — " .. (editName ~= "" and editName or "…"), fontSize = 16, fontWeight = "bold", color = "on_surface" }),
       ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
-    }
-    for i = 1, 4 do
-      table.insert(rows, ui.label({
-        text = fieldLabels[i],
+      ui.label({
+        text = fieldLabels[editField],
         fontSize = 12,
-        color = (i == editField) and "primary" or "on_surface_variant",
-      }))
-      if i == editField then
-        -- Active field: a fresh input (unique key) with focus=true, so the
-        -- keyboard goes into it after Up/Down switching.
-        table.insert(rows, ui.input({
-          key = "ed-f" .. editField .. "-" .. editRenderTick,
-          value = fieldValues[i],
-          placeholder = i == 1 and "Command name"
-            or (i == 2 and "Prompt template with {input}")
-            or (i == 3 and "🚀")
-            or "e.g. s",
-          focus = true,
-          onChange = function(v)
-            if i == 1 then editName = v
-            elseif i == 2 then editPrompt = v
-            elseif i == 3 then editIcon = v
-            else editShortcut = v end
-          end,
-        }))
-      else
-        -- Inactive field: show the current value as a label.
+        color = "primary",
+      }),
+      ui.input({
+        key = "ed-f" .. editField .. "-" .. editRenderTick,
+        value = fieldValues[editField],
+        focus = true,
+        multiline = isPrompt,
+        height = isPrompt and 110 or nil,
+        placeholder = editField == 1 and "Command name"
+          or (editField == 2 and "Prompt template with {input}")
+          or (editField == 3 and "🚀" or "e.g. s"),
+        submitOnEnter = not isPrompt,
+        onChange = function(v)
+          if editField == 1 then editName = v
+          elseif editField == 2 then editPrompt = v
+          elseif editField == 3 then editIcon = v
+          else editShortcut = v end
+        end,
+      }),
+    }
+    -- The other 3 fields are rendered compactly as single lines.
+    for i = 1, 4 do
+      if i ~= editField then
         local val = fieldValues[i]
         table.insert(rows, ui.label({
-          text = (val ~= nil and val ~= "") and val or "—",
+          text = fieldLabels[i] .. ":  " .. ((val ~= nil and val ~= "") and val or "—"),
           color = "on_surface_variant",
           fontSize = 12,
+          maxLines = 1,
         }))
       end
     end
@@ -666,7 +684,9 @@ render = function()
       table.insert(rows, ui.label({ text = editError, fontSize = 12, color = "error" }))
     end
     table.insert(rows, ui.label({
-      text = "Enter: save · Esc: back · Up/Down: switch field",
+      text = isPrompt
+        and "Ctrl+Enter: save · Esc: back · Up/Down: switch field · Enter: newline"
+        or "Enter: next field · Ctrl+Enter: save · Esc: back",
       fontSize = 11,
       color = "on_surface_variant",
     }))
@@ -681,34 +701,38 @@ render = function()
   end
 
   -- PHASE_LIST
-  -- Visibility window: render VISIBLE+1 commands (wheel margin) starting at
-  -- scrollIdx. Arrows move selectedIndex and scrollIdx together, so the
-  -- selector is always visible.
+  -- Carousel window: the selected command sits in the middle of the window;
+  -- rows wrap around the ring, so the list keeps a constant height and never
+  -- overflows its area — no scrollbar. Rendered as plain buttons in the
+  -- column (no ui.scroll at all).
+  local n = #commands
   local listRows = {}
-  local first = math.max(1, scrollIdx + 1)
-  local last = math.min(#commands, first + VISIBLE) -- +1 margin: wheel can scroll the last one
-  for i = first, last do
-    local cmd = commands[i]
-    local label = cmd.name or ""
-    if cmd.icon ~= nil and cmd.icon ~= "" then label = cmd.icon .. "  " .. label end
-    if cmd.shortcut ~= nil and cmd.shortcut ~= "" then label = label .. "   [" .. cmd.shortcut .. "]" end
-    table.insert(listRows, ui.button({
-      key = "cmd-" .. i,
-      text = label,
-      contentAlign = "start",
-      selected = (i == selectedIndex),
-      onClick = function()
-        selectedIndex = i
-        if cmd.ask then
-          askIndex = i
-          askDraft = ""
-          phase = PHASE_ASK
-          safeRender()
-        else
-          runCommand(i)
-        end
-      end,
-    }))
+  if n > 0 then
+    local selectedRow = math.ceil(VISIBLE / 2) -- selected item's row within the window
+    for k = 0, math.min(VISIBLE, n) - 1 do
+      local cmdIndex = ((selectedIndex - selectedRow + k) % n) + 1
+      local cmd = commands[cmdIndex]
+      local label = cmd.name or ""
+      if cmd.icon ~= nil and cmd.icon ~= "" then label = cmd.icon .. "  " .. label end
+      if cmd.shortcut ~= nil and cmd.shortcut ~= "" then label = label .. "   [" .. cmd.shortcut .. "]" end
+      table.insert(listRows, ui.button({
+        key = "cmd-" .. cmdIndex,
+        text = label,
+        contentAlign = "start",
+        selected = (cmdIndex == selectedIndex),
+        onClick = function()
+          selectedIndex = cmdIndex
+          if cmd.ask then
+            askIndex = cmdIndex
+            askDraft = ""
+            phase = PHASE_ASK
+            safeRender()
+          else
+            runCommand(cmdIndex)
+          end
+        end,
+      }))
+    end
   end
 
   local sub = inputText ~= "" and string.sub(inputText, 1, 60) or t("no_selection")
@@ -717,25 +741,7 @@ render = function()
     ui.label({ text = t("title"), fontSize = 16, fontWeight = "bold", color = "on_surface" }),
     ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
     ui.label({ text = sub, color = "on_surface_variant", fontSize = 12, maxLines = 1 }),
-    -- Mouse wheel: onScroll moves the window manually (ui.scroll has no
-    -- programmatic scrollTo)
-    ui.scroll({
-      flexGrow = 1,
-      gap = 6,
-      align = "stretch",
-      onScroll = function(offsetStr)
-        local offset = tonumber(offsetStr) or 0
-        if offset > 0 and scrollIdx + VISIBLE < #commands then
-          scrollIdx = scrollIdx + 1
-          -- keep the selector inside the window
-          if selectedIndex <= scrollIdx then selectedIndex = scrollIdx + 1 end
-          safeRender()
-        elseif offset <= 0 and scrollIdx > 0 then
-          scrollIdx = scrollIdx - 1
-          safeRender()
-        end
-      end,
-    }, listRows),
+    ui.column({ flexGrow = 1, gap = 6, align = "stretch" }, listRows),
   }))
 end
 

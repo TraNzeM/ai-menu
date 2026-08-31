@@ -75,7 +75,7 @@ height = 440
 placement = "floating"
 position = "center"
 keyboard_focus = "exclusive"
-capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape", "Tab", "Ctrl+Return", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 # Control-center tile: quick panel open.
 [[shortcut]]

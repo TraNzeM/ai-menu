@@ -14,7 +14,8 @@ Works with any Hermes-compatible API (OpenAI format).
 - **Prompt editor**: press `E` on a command to edit its name / prompt / icon / shortcut, Reset to the built-in variant, validation (`{input}` placeholder required, unique single-letter shortcuts)
 - **Shortcuts**: assign a letter/digit to a command and run it with a single keystroke
 - **Icons**: emoji shown next to the command name
-- **Keyboard + mouse**: Up/Down to pick, Enter to run, letter = shortcut, Esc to close, wheel to scroll
+- **Keyboard + mouse**: Up/Down to pick (wraps around circularly), Enter to run, letter = shortcut, Esc to close
+- **Carousel list**: the selected command always sits in the middle of the window; the list wraps around in a circle (endless scrolling in both directions), no scrollbar
 - **Actions**: Copy / Insert / Replace / Chat (text buttons) + Retry (refresh icon)
 
 ## Install
