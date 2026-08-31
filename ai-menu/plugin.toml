@@ -8,7 +8,7 @@
 
 id = "tranzem/ai-menu"
 name = "AI Menu"
-version = "0.1.0"
+version = "0.2.0"
 plugin_api = 24
 author = "tranzem"
 license = "MIT"
@@ -59,17 +59,6 @@ label_key = "settings.chat_command.label"
 description_key = "settings.chat_command.description"
 default = "hermes chat --resume {session}"
 
-[[setting]]
-key = "language"
-type = "select"
-label_key = "settings.language.label"
-description_key = "settings.language.description"
-default = "en"
-options = [
-  { value = "en", label_key = "settings.language.options.en" },
-  { value = "ru", label_key = "settings.language.options.ru" },
-]
-
 # Background service: performs the deferred paste (wtype) after the panel
 # closes, so focus returns to the app first; for Insert restores the previous
 # clipboard.
@@ -86,7 +75,7 @@ height = 440
 placement = "floating"
 position = "center"
 keyboard_focus = "exclusive"
-capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape"]
+capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 # Control-center tile: quick panel open.
 [[shortcut]]

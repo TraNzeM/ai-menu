@@ -23,14 +23,6 @@
     "chat_command": {
       "label": "Команда чата",
       "description": "Терминальная команда для кнопки Chat. {session} заменяется на id сессии. Для Docker: docker exec -it hermes-agent hermes chat --resume {session}"
-    },
-    "language": {
-      "label": "Язык",
-      "description": "Язык интерфейса плагина и промптов команд.",
-      "options": {
-        "en": "English",
-        "ru": "Русский"
-      }
     }
   },
   "ui": {

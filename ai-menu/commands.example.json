@@ -2,38 +2,18 @@
   {
     "name": "Ask me anything",
     "prompt": "Answer the following: {input}",
-    "name_ru": "Спроси о чём угодно",
-    "prompt_ru": "Ответь на следующий вопрос: {input}",
-    "ask": true
+    "ask": true,
+    "icon": "🚀",
+    "shortcut": "a"
   },
   {
     "name": "Explain this",
     "prompt": "Explain the text in triple quotes below:\n\"\"\"\n{input}\n\"\"\"\nDo not return anything other than the explanation. Do not wrap responses in quotes.",
-    "name_ru": "Объясни это",
-    "prompt_ru": "Объясни текст в тройных кавычках ниже:\n\"\"\"\n{input}\n\"\"\"\nНе возвращай ничего, кроме объяснения. Не оборачивай ответ в кавычки."
+    "icon": "💡"
   },
   {
     "name": "Fix spelling and grammar",
-    "prompt": "Correct the text in triple quotes below into standard English and fix the grammar. Make your best effort.\n\"\"\"\n{input}\n\"\"\"\nDo not return anything other than the corrected text. Do not wrap responses in quotes.",
-    "name_ru": "Исправить орфографию и грамматику",
-    "prompt_ru": "Исправь текст в тройных кавычках ниже. Сделай всё возможное.\n\"\"\"\n{input}\n\"\"\"\nНе возвращай ничего, кроме исправленного текста. Не оборачивай ответ в кавычки."
-  },
-  {
-    "name": "Improve writing",
-    "prompt": "Improve the text in triple quotes below in your own words. Rephrase the text.\n\"\"\"\n{input}\n\"\"\"\nDo not return anything other than the rephrased text. Do not wrap responses in quotes.",
-    "name_ru": "Улучшить текст",
-    "prompt_ru": "Улучши текст в тройных кавычках ниже своими словами. Перефразируй текст.\n\"\"\"\n{input}\n\"\"\"\nНе возвращай ничего, кроме перефразированного текста. Не оборачивай ответ в кавычки."
-  },
-  {
-    "name": "Translate to Russian",
-    "prompt": "Translate the text in triple quotes below to Russian.\n\"\"\"\n{input}\n\"\"\"\nDo not return anything other than the translation.",
-    "name_ru": "Перевести на русский",
-    "prompt_ru": "Переведи текст в тройных кавычках ниже на русский.\n\"\"\"\n{input}\n\"\"\"\nНе возвращай ничего, кроме перевода."
-  },
-  {
-    "name": "Write a short summary",
-    "prompt": "Summarize the text in triple quotes but keep it concise. Summarize using plain and simple words, preserve the tense:\n\"\"\"\n{input}\n\"\"\"\nDo not return anything other than the summary.",
-    "name_ru": "Краткое резюме",
-    "prompt_ru": "Суммаризируй текст в тройных кавычках кратко. Используй простые слова, сохрани время:\n\"\"\"\n{input}\n\"\"\"\nНе возвращай ничего, кроме резюме."
+    "prompt": "Correct the text in triple quotes below into standard English and fix all the spelling and grammar issues. Only return the corrected text:\n\"\"\"\n{input}\n\"\"\"",
+    "icon": "✏️"
   }
 ]

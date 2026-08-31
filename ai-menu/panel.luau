@@ -24,48 +24,28 @@ local PHASE_LIST = "list"
 local PHASE_ASK = "ask"
 local PHASE_WORKING = "working"
 local PHASE_DONE = "done"
+local PHASE_EDIT = "edit"
 
--- Localization: en/ru tables + t() by the language setting (default en).
+-- UI strings (panel always in English; plugin settings in the Noctalia GUI
+-- are localized by Noctalia's own language via translations/<lang>.json).
 local I18N = {
-  en = {
-    title = "AI Menu",
-    ask_hint = "Type your question (Enter to send, Esc to go back)",
-    ask_placeholder = "Your question…",
-    working = "Requesting Hermes…",
-    no_selection = "Select some text and open the menu",
-    http_transport_error = "HTTP: transport error",
-    http_rejected = "HTTP: request rejected",
-    http_auth_error = "Authentication error (401/403): API_SERVER_KEY not found or invalid. If Hermes runs in Docker, set env_file to your compose .env (e.g. ~/hermes-workspace/.env) and set API_SERVER_KEY there.",
-    env_file_error = "Cannot read env file: ",
-    empty_response = "empty model response",
-    retry = "Retry",
-    actions = { "Copy", "Insert", "Replace", "Chat" },
-  },
-  ru = {
-    title = "AI Menu",
-    ask_hint = "Введите вопрос (Enter — отправить, Esc — назад)",
-    ask_placeholder = "Ваш вопрос…",
-    working = "Запрос к Hermes…",
-    no_selection = "Выделите текст и откройте меню",
-    http_transport_error = "HTTP: транспортная ошибка",
-    http_rejected = "HTTP: запрос отклонён",
-    http_auth_error = "Ошибка авторизации (401/403): API_SERVER_KEY не найден или неверен. Если Hermes в Docker — укажи в env_file путь к compose .env (например ~/hermes-workspace/.env) и задай там API_SERVER_KEY.",
-    env_file_error = "Не удалось прочитать env-файл: ",
-    empty_response = "пустой ответ модели",
-    retry = "Повторить",
-    actions = { "Копировать", "Вставить", "Заменить", "Чат" },
-  },
+  title = "AI Menu",
+  ask_hint = "Type your question (Enter to send, Esc to go back)",
+  ask_placeholder = "Your question…",
+  working = "Requesting Hermes…",
+  no_selection = "Select some text and open the menu",
+  http_transport_error = "HTTP: transport error",
+  http_rejected = "HTTP: request rejected",
+  http_auth_error = "Authentication error (401/403): API_SERVER_KEY not found or invalid. If Hermes runs in Docker, set env_file to your compose .env (e.g. ~/hermes-workspace/.env) and set API_SERVER_KEY there.",
+  env_file_error = "Cannot read env file: ",
+  empty_response = "empty model response",
+  retry = "Retry",
+  actions = { "Copy", "Insert", "Replace", "Chat" },
 }
 
-local function currentLang()
-  local lang = noctalia.getConfig("language") or "en"
-  if I18N[lang] then return lang end
-  return "en"
-end
-
 local function t(key)
-  local v = I18N[currentLang()][key]
-  if v == nil then v = I18N.en[key] end -- fallback to en when the key is missing in the selected language
+  local v = I18N[key]
+  if v == nil then return key end -- missing key: fall back to the key itself
   return v
 end
 
@@ -143,7 +123,7 @@ local function runCommand(index, askInput)
   local model = noctalia.getConfig("model") or "deepseek-v4-flash"
   local envFile = noctalia.getConfig("env_file") or "~/.hermes/.env"
   local source = askInput or inputText
-  local promptTemplate = cmd.displayPrompt or cmd.prompt
+  local promptTemplate = cmd.prompt
   -- Escape % in the substituted text: in string.gsub replacements % is a
   -- special character (e.g. "50%" would break the prompt).
   -- IMPORTANT: the inner gsub returns (string, count) — parens drop the
@@ -279,6 +259,19 @@ local function runCommand(index, askInput)
   end
 end
 
+-- Prompt editor state (PHASE_EDIT): fields 1=name 2=prompt 3=icon 4=shortcut.
+local editIndex = 0
+local editField = 1
+local editName = ""
+local editPrompt = ""
+local editIcon = ""
+local editShortcut = ""
+local editError = ""
+-- Bumped on every render: forces ui.input recreation (focus=true only takes
+-- effect on a freshly-created input), so the active field always receives
+-- keyboard input after Up/Down switching.
+local editRenderTick = 0
+
 -- Done-panel actions.
 local function doAction(i)
   if phase ~= PHASE_DONE then return end
@@ -311,6 +304,108 @@ local function doAction(i)
       runCommand(lastRequest.index, lastRequest.askInput)
     end
   end
+end
+
+-- Prompt editor --------------------------------------------------------------
+
+-- Open the editor for command i (from PHASE_LIST).
+local function openEditor(i)
+  local cmd = commands[i]
+  if cmd == nil then return end
+  editIndex = i
+  editField = 1
+  editName = cmd.name or ""
+  editPrompt = cmd.prompt or ""
+  editIcon = cmd.icon or ""
+  editShortcut = cmd.shortcut or ""
+  editError = ""
+  phase = PHASE_EDIT
+  safeRender()
+end
+
+-- Built-in variant of a command by name (for Reset), or nil.
+local function defaultFor(name)
+  for _, c in ipairs(DEFAULT_COMMANDS) do
+    if c.name == name then return c end
+  end
+  return nil
+end
+
+-- Reset the editor to the built-in variant (clears icon/shortcut).
+local function resetEditor()
+  local def = defaultFor(editName)
+  if def then
+    editName = def.name
+    editPrompt = def.prompt
+  end
+  editIcon = ""
+  editShortcut = ""
+  editError = ""
+  safeRender()
+end
+
+-- Back to the command list without saving.
+local function backFromEditor()
+  phase = PHASE_LIST
+  safeRender()
+end
+
+-- Validate + persist the edited command back to commands_file.
+local function saveEditor()
+  editError = ""
+  editName = noctalia.string.trim(editName)
+  editPrompt = noctalia.string.trim(editPrompt)
+  editShortcut = noctalia.string.trim(editShortcut)
+  if editName == "" then editError = "Name is required" safeRender() return end
+  if editPrompt == "" then editError = "Prompt is required" safeRender() return end
+  if not string.find(editPrompt, "{input}", 1, true) then
+    editError = "Prompt must contain the {input} placeholder"
+    safeRender()
+    return
+  end
+  if editShortcut ~= "" and not string.match(editShortcut, "^[%w]$") then
+    editError = "Shortcut must be a single letter or digit"
+    safeRender()
+    return
+  end
+  if editShortcut ~= "" then
+    for i, c in ipairs(commands) do
+      local cs = noctalia.string.trim(c.shortcut or "")
+      if cs ~= "" and string.upper(cs) == string.upper(editShortcut) and i ~= editIndex then
+        editError = "Shortcut already used by \"" .. (c.name or "?") .. "\""
+        safeRender()
+        return
+      end
+    end
+  end
+  -- update in-memory copy
+  local ask = (commands[editIndex] and commands[editIndex].ask == true)
+  commands[editIndex] = {
+    name = editName, prompt = editPrompt, ask = ask,
+    icon = editIcon, shortcut = editShortcut,
+  }
+  -- persist to commands_file (create if missing)
+  local path = noctalia.getConfig("commands_file")
+  if path ~= nil and path ~= "" then
+    local saveData = {}
+    for _, c in ipairs(commands) do
+      local e = { name = c.name, prompt = c.prompt }
+      if c.ask then e.ask = true end
+      if c.icon and c.icon ~= "" then e.icon = c.icon end
+      if c.shortcut and c.shortcut ~= "" then e.shortcut = c.shortcut end
+      table.insert(saveData, e)
+    end
+    local ok, werr = noctalia.writeFile(noctalia.expandPath(path), noctalia.json.encode(saveData))
+    if ok then
+      noctalia.log("ai-menu: commands saved to " .. tostring(path))
+    else
+      noctalia.log("ai-menu: failed to save commands: " .. tostring(werr))
+      editError = "Failed to save commands file: " .. tostring(werr)
+      safeRender()
+      return
+    end
+  end
+  backFromEditor()
 end
 
 -- Keyboard: Up/Down through commands, Enter run, Esc close.
@@ -348,6 +443,25 @@ function onKey(chord, pressed)
       else
         runCommand(selectedIndex)
       end
+    elseif chord == "E" then
+      -- Edit the selected command's prompt
+      openEditor(selectedIndex)
+    elseif #chord == 1 and string.match(chord, "^[%w]$") then
+      -- shortcut letter/digit: run the command that owns it
+      for i, c in ipairs(commands) do
+        local sc = noctalia.string.trim(c.shortcut or "")
+        if sc ~= "" and string.upper(sc) == string.upper(chord) then
+          if c.ask then
+            askIndex = i
+            askDraft = ""
+            phase = PHASE_ASK
+            safeRender()
+          else
+            runCommand(i)
+          end
+          break
+        end
+      end
     elseif chord == "Escape" then
       panel.close()
     end
@@ -377,6 +491,20 @@ function onKey(chord, pressed)
     elseif chord == "Escape" then
       panel.close()
     end
+  elseif phase == PHASE_EDIT then
+    if chord == "Up" then
+      editField = editField - 1
+      if editField < 1 then editField = 4 end
+      safeRender()
+    elseif chord == "Down" then
+      editField = editField + 1
+      if editField > 4 then editField = 1 end
+      safeRender()
+    elseif chord == "Return" then
+      saveEditor()
+    elseif chord == "Escape" then
+      backFromEditor()
+    end
   elseif phase == PHASE_WORKING and chord == "Escape" then
     -- do not cancel HTTP, just close the panel; the callback will no-op
     panel.close()
@@ -387,7 +515,7 @@ render = function()
   if phase == PHASE_ASK then
     -- Free question (ask): input field instead of the command list.
     local cmd = commands[askIndex] or {}
-    local cmdName = cmd.displayName or (cmd.name or "")
+    local cmdName = cmd.name or ""
     panel.render(ui.column({ flexGrow = 1, gap = 12, align = "stretch", padding = 16 }, {
       ui.label({ text = t("title") .. " — " .. cmdName, fontSize = 16, fontWeight = "bold", color = "on_surface" }),
       ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
@@ -486,6 +614,72 @@ render = function()
     return
   end
 
+  -- PHASE_EDIT: prompt editor for the selected command.
+  if phase == PHASE_EDIT then
+    editRenderTick = editRenderTick + 1
+    local fieldLabels = {
+      "Name",
+      "Prompt ({input} required)",
+      "Icon (emoji)",
+      "Shortcut (single letter)",
+    }
+    local fieldValues = { editName, editPrompt, editIcon, editShortcut }
+    local rows = {
+      ui.label({ text = "Edit command — " .. (editName ~= "" and editName or "…"), fontSize = 16, fontWeight = "bold", color = "on_surface" }),
+      ui.separator({ thickness = 1, color = "outline/0.4", spacing = 4 }),
+    }
+    for i = 1, 4 do
+      table.insert(rows, ui.label({
+        text = fieldLabels[i],
+        fontSize = 12,
+        color = (i == editField) and "primary" or "on_surface_variant",
+      }))
+      if i == editField then
+        -- Active field: a fresh input (unique key) with focus=true, so the
+        -- keyboard goes into it after Up/Down switching.
+        table.insert(rows, ui.input({
+          key = "ed-f" .. editField .. "-" .. editRenderTick,
+          value = fieldValues[i],
+          placeholder = i == 1 and "Command name"
+            or (i == 2 and "Prompt template with {input}")
+            or (i == 3 and "🚀")
+            or "e.g. s",
+          focus = true,
+          onChange = function(v)
+            if i == 1 then editName = v
+            elseif i == 2 then editPrompt = v
+            elseif i == 3 then editIcon = v
+            else editShortcut = v end
+          end,
+        }))
+      else
+        -- Inactive field: show the current value as a label.
+        local val = fieldValues[i]
+        table.insert(rows, ui.label({
+          text = (val ~= nil and val ~= "") and val or "—",
+          color = "on_surface_variant",
+          fontSize = 12,
+        }))
+      end
+    end
+    if editError ~= "" then
+      table.insert(rows, ui.label({ text = editError, fontSize = 12, color = "error" }))
+    end
+    table.insert(rows, ui.label({
+      text = "Enter: save · Esc: back · Up/Down: switch field",
+      fontSize = 11,
+      color = "on_surface_variant",
+    }))
+    table.insert(rows, ui.spacer({ flexGrow = 1 }))
+    table.insert(rows, ui.row({ gap = 4, align = "center" }, {
+      ui.button({ key = "ed-save", text = "Save", variant = "primary", onClick = function() saveEditor() end }),
+      ui.button({ key = "ed-reset", text = "Reset", onClick = function() resetEditor() end }),
+      ui.button({ key = "ed-back", text = "Back", onClick = function() backFromEditor() end }),
+    }))
+    panel.render(ui.column({ flexGrow = 1, gap = 10, align = "stretch", padding = 16 }, rows))
+    return
+  end
+
   -- PHASE_LIST
   -- Visibility window: render VISIBLE+1 commands (wheel margin) starting at
   -- scrollIdx. Arrows move selectedIndex and scrollIdx together, so the
@@ -495,9 +689,12 @@ render = function()
   local last = math.min(#commands, first + VISIBLE) -- +1 margin: wheel can scroll the last one
   for i = first, last do
     local cmd = commands[i]
+    local label = cmd.name or ""
+    if cmd.icon ~= nil and cmd.icon ~= "" then label = cmd.icon .. "  " .. label end
+    if cmd.shortcut ~= nil and cmd.shortcut ~= "" then label = label .. "   [" .. cmd.shortcut .. "]" end
     table.insert(listRows, ui.button({
       key = "cmd-" .. i,
-      text = cmd.displayName or cmd.name,
+      text = label,
       contentAlign = "start",
       selected = (i == selectedIndex),
       onClick = function()
@@ -543,24 +740,21 @@ render = function()
 end
 
 -- Built-in commands (fallback when commands_file is unset/unreadable).
--- displayName/displayPrompt are chosen by language; name/prompt — EN variants.
 local DEFAULT_COMMANDS = {
-  { name = "Ask me anything", ask = true, prompt = 'Answer the following: {input}', name_ru = "Спроси о чём угодно", prompt_ru = 'Ответь на следующий вопрос: {input}' },
-  { name = "Explain this", prompt = 'Explain the text in triple quotes below:\n"""\n{input}\n"""\nDo not return anything other than the explanation. Do not wrap responses in quotes.', name_ru = "Объясни это", prompt_ru = 'Объясни текст в тройных кавычках ниже:\n"""\n{input}\n"""\nНе возвращай ничего, кроме объяснения. Не оборачивай ответ в кавычки.' },
-  { name = "Fix spelling and grammar", prompt = 'Correct the text in triple quotes below into standard English and fix the grammar. Make your best effort.\n"""\n{input}\n"""\nDo not return anything other than the corrected text. Do not wrap responses in quotes.', name_ru = "Исправить орфографию и грамматику", prompt_ru = 'Исправь текст в тройных кавычках ниже. Сделай всё возможное.\n"""\n{input}\n"""\nНе возвращай ничего, кроме исправленного текста. Не оборачивай ответ в кавычки.' },
-  { name = "Improve writing", prompt = 'Improve the text in triple quotes below in your own words. Rephrase the text.\n"""\n{input}\n"""\nDo not return anything other than the rephrased text. Do not wrap responses in quotes.', name_ru = "Улучшить текст", prompt_ru = 'Улучши текст в тройных кавычках ниже своими словами. Перефразируй текст.\n"""\n{input}\n"""\nНе возвращай ничего, кроме перефразированного текста. Не оборачивай ответ в кавычки.' },
-  { name = "Expand my writing", prompt = 'The following text in triple quotes below has already been written:\n"""\n{input}\n"""\nExpand the writing. Write at least 3 paragraphs. Do not return anything other than the expanded writing.', name_ru = "Расширить текст", prompt_ru = 'Следующий текст в тройных кавычках уже написан:\n"""\n{input}\n"""\nРасширь текст. Напиши минимум 3 абзаца. Не возвращай ничего, кроме расширенного текста.' },
-  { name = "Simplify my writing", prompt = 'The following text in triple quotes below has already been written:\n"""\n{input}\n"""\nSimplify and condense the writing. Do not return anything other than the simplified writing.', name_ru = "Упростить текст", prompt_ru = 'Следующий текст в тройных кавычках уже написан:\n"""\n{input}\n"""\nУпрости и сократи текст. Не возвращай ничего, кроме упрощённого текста.' },
-  { name = "List key takeaways", prompt = 'My notes are below in triple quotes:\n"""\n{input}\n"""\nWrite a markdown list (using dashes) of the important points from the notes. Write at least 10 items.', name_ru = "Основные выводы", prompt_ru = 'Мои заметки ниже в тройных кавычках:\n"""\n{input}\n"""\nНапиши markdown-список (через дефисы) важных пунктов из заметок. Напиши минимум 10 пунктов.' },
-  { name = "Write a short summary", prompt = 'Summarize the text in triple quotes but keep it concise. Summarize using plain and simple words, preserve the tense:\n"""\n{input}\n"""\nDo not return anything other than the summary.', name_ru = "Краткое резюме", prompt_ru = 'Суммаризируй текст в тройных кавычках кратко. Используй простые слова, сохрани время:\n"""\n{input}\n"""\nНе возвращай ничего, кроме резюме.' },
-  { name = "Write a longer summary", prompt = 'Summarize the text in triple quotes below into three long paragraphs. Summarize using plain and simple words, preserve the tense:\n"""\n{input}\n"""\nDo not return anything other than the summary.', name_ru = "Подробное резюме", prompt_ru = 'Суммаризируй текст в тройных кавычках ниже в три длинных абзаца. Используй простые слова, сохрани время:\n"""\n{input}\n"""\nНе возвращай ничего, кроме резюме.' },
-  { name = "Translate to Russian", prompt = 'Translate the text in triple quotes below to Russian.\n"""\n{input}\n"""\nDo not return anything other than the translation.', name_ru = "Перевести на русский", prompt_ru = 'Переведи текст в тройных кавычках ниже на русский.\n"""\n{input}\n"""\nНе возвращай ничего, кроме перевода.' },
+  { name = "Ask me anything", ask = true, prompt = 'Answer the following: {input}' },
+  { name = "Explain this", prompt = 'Explain the text in triple quotes below:\n"""\n{input}\n"""\nDo not return anything other than the explanation. Do not wrap responses in quotes.' },
+  { name = "Fix spelling and grammar", prompt = 'Correct the text in triple quotes below into standard English and fix the grammar. Make your best effort.\n"""\n{input}\n"""\nDo not return anything other than the corrected text. Do not wrap responses in quotes.' },
+  { name = "Improve writing", prompt = 'Improve the text in triple quotes below in your own words. Rephrase the text.\n"""\n{input}\n"""\nDo not return anything other than the rephrased text. Do not wrap responses in quotes.' },
+  { name = "Expand my writing", prompt = 'The following text in triple quotes below has already been written:\n"""\n{input}\n"""\nExpand the writing. Write at least 3 paragraphs. Do not return anything other than the expanded writing.' },
+  { name = "Simplify my writing", prompt = 'The following text in triple quotes below has already been written:\n"""\n{input}\n"""\nSimplify and condense the writing. Do not return anything other than the simplified writing.' },
+  { name = "List key takeaways", prompt = 'My notes are below in triple quotes:\n"""\n{input}\n"""\nWrite a markdown list (using dashes) of the important points from the notes. Write at least 10 items.' },
+  { name = "Write a short summary", prompt = 'Summarize the text in triple quotes but keep it concise. Summarize using plain and simple words, preserve the tense:\n"""\n{input}\n"""\nDo not return anything other than the summary.' },
+  { name = "Write a longer summary", prompt = 'Summarize the text in triple quotes below into three long paragraphs. Summarize using plain and simple words, preserve the tense:\n"""\n{input}\n"""\nDo not return anything other than the summary.' },
+  { name = "Translate to Russian", prompt = 'Translate the text in triple quotes below to Russian.\n"""\n{input}\n"""\nDo not return anything other than the translation.' },
 }
 
 -- Load commands: commands_file (JSON [{name,prompt}]) or built-ins.
--- Supports name_ru/prompt_ru: the ru variant is picked when language=ru.
 local function loadCommands()
-  local lang = currentLang()
   local path = noctalia.getConfig("commands_file")
   if path ~= nil and path ~= "" then
     local raw, err = noctalia.readFile(noctalia.expandPath(path))
@@ -570,15 +764,13 @@ local function loadCommands()
         local result = {}
         for _, c in ipairs(data) do
           if type(c) == "table" and type(c.name) == "string" and type(c.prompt) == "string" then
-            local entry = { name = c.name, prompt = c.prompt, ask = (c.ask == true) }
-            if lang == "ru" and type(c.name_ru) == "string" and type(c.prompt_ru) == "string" then
-              entry.displayName = c.name_ru
-              entry.displayPrompt = c.prompt_ru
-            else
-              entry.displayName = c.name
-              entry.displayPrompt = c.prompt
-            end
-            table.insert(result, entry)
+            table.insert(result, {
+              name = c.name,
+              prompt = c.prompt,
+              ask = (c.ask == true),
+              icon = (type(c.icon) == "string" and c.icon) or nil,
+              shortcut = (type(c.shortcut) == "string" and c.shortcut) or nil,
+            })
           end
         end
         if #result > 0 then
@@ -592,18 +784,16 @@ local function loadCommands()
       noctalia.log("ai-menu: commands_file read err: " .. tostring(err))
     end
   end
-  -- fallback: built-in commands, localized by language
+  -- fallback: built-in commands
   local result = {}
   for _, c in ipairs(DEFAULT_COMMANDS) do
-    local entry = { name = c.name, prompt = c.prompt, ask = (c.ask == true) }
-    if lang == "ru" and c.name_ru then
-      entry.displayName = c.name_ru
-      entry.displayPrompt = c.prompt_ru
-    else
-      entry.displayName = c.name
-      entry.displayPrompt = c.prompt
-    end
-    table.insert(result, entry)
+    table.insert(result, {
+      name = c.name,
+      prompt = c.prompt,
+      ask = (c.ask == true),
+      icon = (type(c.icon) == "string" and c.icon) or nil,
+      shortcut = (type(c.shortcut) == "string" and c.shortcut) or nil,
+    })
   end
   return result
 end

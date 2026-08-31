@@ -23,14 +23,6 @@
     "chat_command": {
       "label": "Chat command",
       "description": "Terminal command for the Chat button. {session} is replaced with the session id. For Docker: docker exec -it hermes-agent hermes chat --resume {session}"
-    },
-    "language": {
-      "label": "Language",
-      "description": "Plugin UI and command prompts language.",
-      "options": {
-        "en": "English",
-        "ru": "Русский"
-      }
     }
   },
   "ui": {
