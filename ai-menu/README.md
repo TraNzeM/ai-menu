@@ -17,6 +17,8 @@ Works with any Hermes-compatible API (OpenAI format).
 - **Keyboard + mouse**: Up/Down to pick (wraps around circularly), Enter to run, letter = shortcut, Esc to close
 - **Carousel list**: the selected command always sits in the middle of the window (3rd of 5 rows); the list wraps around in a circle (endless scrolling in both directions). Rows have a fixed height and the content is sized to the panel's list viewport, so no scrollbar and nothing draws outside the window
 - **Actions**: Copy / Insert / Replace / Chat (text buttons) + Retry (refresh icon)
+- **Command context menu**: right-click a command → Run / Copy prompt / Edit… (native menu via `panel.openContextMenu`; requires Noctalia with plugin API 28+)
+- **Over fullscreen**: the panel floats in the `overlay` layer-shell layer, so AI Menu also opens over fullscreen video/slides (Noctalia plugin API 30+; `layer = "overlay"` in the manifest)
 
 ## Install
 

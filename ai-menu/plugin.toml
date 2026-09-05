@@ -8,13 +8,13 @@
 
 id = "tranzem/ai-menu"
 name = "AI Menu"
-version = "0.2.0"
-plugin_api = 24
+version = "0.3.0"
+plugin_api = 30
 author = "tranzem"
 license = "MIT"
 tags = ["ai", "hermes", "productivity"]
 icon = "sparkles"
-description = "AI-команды над выделенным текстом через Hermes API (Copy / Replace / Insert / Chat / Write)."
+description = "AI-команды над выделенным текстом через Hermes API (Copy / Insert / Replace / Chat)."
 
 [[setting]]
 key = "base_url"
@@ -74,6 +74,10 @@ width = 720
 height = 440
 placement = "floating"
 position = "center"
+# api>=30: layer-shell layer of the floating panel. "top" (default) is above
+# normal windows; "overlay" also covers fullscreen content — AI Menu stays
+# reachable over fullscreen video/slides.
+layer = "overlay"
 keyboard_focus = "exclusive"
 capture_keys = ["Up", "Down", "Left", "Right", "Return", "Escape", "Tab", "Ctrl+Return", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 

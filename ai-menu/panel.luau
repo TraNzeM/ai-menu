@@ -94,6 +94,11 @@ local I18N = {
 
   actions = { "Copy", "Insert", "Replace", "Chat" },
 
+  ctx_run = "Run",
+  ctx_copy_prompt = "Copy prompt",
+  ctx_edit = "Edit…",
+  prompt_copied = "Prompt copied to clipboard",
+
 }
 
 
@@ -1567,9 +1572,9 @@ render = function()
 
   -- rows wrap around the ring, so the list keeps a constant height and never
 
-  -- overflows its area — no scrollbar. Rendered as plain buttons in the
+  -- overflows its area — no scrollbar. Rendered as plain buttons wrapped in a
 
-  -- column (no ui.scroll at all).
+  -- ui.scroll used as a clipping container (see the render call below).
 
   local n = #commands
 
@@ -1628,6 +1633,36 @@ render = function()
             runCommand(cmdIndex)
 
           end
+
+        end,
+
+        onRightClick = function()
+
+          -- Native context menu (panel.openContextMenu, plugin_api 28+); it can
+          -- only be opened from a live pointer callback, which onRightClick is.
+          selectedIndex = cmdIndex
+
+          panel.openContextMenu({
+
+            items = {
+
+              { kind = "header", label = cmd.name or "" },
+
+              { kind = "item", id = "run", label = t("ctx_run") },
+
+              { kind = "item", id = "copy_prompt", label = t("ctx_copy_prompt") },
+
+              { kind = "separator" },
+
+              { kind = "item", id = "edit", label = t("ctx_edit") },
+
+            },
+
+            onActivate = "onCommandMenuActivate",
+
+            context = cmdIndex,
+
+          })
 
         end,
 
@@ -1786,6 +1821,53 @@ local function loadCommands()
 end
 
 
+
+-- Context menu activation (global on purpose: panel.openContextMenu's
+-- onActivate is the NAME of a global function in this panel script; the host
+-- calls it with (actionId, context) — context is the command index we passed).
+function onCommandMenuActivate(actionId, context)
+
+  local cmdIndex = tonumber(context)
+
+  if cmdIndex == nil or commands[cmdIndex] == nil then return end
+
+  if actionId == "run" then
+
+    selectedIndex = cmdIndex
+
+    local cmd = commands[cmdIndex]
+
+    if cmd.ask then
+
+      askIndex = cmdIndex
+
+      askDraft = ""
+
+      phase = PHASE_ASK
+
+      safeRender()
+
+    else
+
+      runCommand(cmdIndex)
+
+    end
+
+  elseif actionId == "copy_prompt" then
+
+    local prompt = commands[cmdIndex].prompt or ""
+
+    noctalia.copyToClipboard(prompt, "text/plain")
+
+    noctalia.notify(t("title"), t("prompt_copied"))
+
+  elseif actionId == "edit" then
+
+    openEditor(cmdIndex)
+
+  end
+
+end
 
 function onOpen(_context)
 
