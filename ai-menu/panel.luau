@@ -1646,8 +1646,8 @@ render = function()
 
             items = {
 
-              { kind = "header", label = cmd.name or "" },
-
+              -- No header: the menu opens right under the cursor on the very row
+              -- it belongs to — a repeating title is redundant (user feedback).
               { kind = "item", id = "run", label = t("ctx_run") },
 
               { kind = "item", id = "copy_prompt", label = t("ctx_copy_prompt") },
